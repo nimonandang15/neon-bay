@@ -79,22 +79,30 @@ function putPlayerInCar(g, x, z, heading) {
 
 export function stageShot(g, name) {
   if (name === 'drive') {
+    // The Meridian Package (m2): driving to the docks with the mission
+    // panel, radio and speedo all live.
+    const m = g.missions.list.find((q) => q.id === 'm2');
+    g.missions.start(m);
+    document.getElementById('mission-card').classList.remove('show');
     putPlayerInCar(g, 0, -120, 0);
-    g.hud.setObjective('Free roam — Neon Bay is yours, Rook');
     runSteps(g, 7, true);
     return;
   }
   if (name === 'chase') {
-    // On foot with the SMG out, 3 stars, armor on, officers closing in —
-    // the weapon panel and armor bar are the point of this frame.
+    // Heat Wave (m3) pushed to 4 stars: police response list, helicopter
+    // with spotlight, roadblock ahead, SMG out, armor on, officers closing in.
+    const m = g.missions.list.find((q) => q.id === 'm3');
+    g.missions.start(m);
+    document.getElementById('mission-card').classList.remove('show');
     g.player.pos.set(0, 0, 140);
     g.player.heading = Math.PI;
     g.player.camYaw = Math.PI;
     g.weapons.give('smg', true);
     g.player.armor = 60;
     g.player.hp = 75;
-    g.police.setStars(3);
-    g.hud.setObjective('Lose the cops — survive 60 seconds at 3 stars');
+    g.police.setStars(4);
+    g.hud.showDialogue('BAY PD DISPATCH', 'RADIO', 'All units, Rook is armed and on Coral Avenue. Air One is overhead — bring him in.', '#3d7bff', 60000);
+    g.shotDialogue = { name: 'BAY PD DISPATCH', role: 'RADIO', text: 'All units, Rook is armed and on Coral Avenue. Air One is overhead — bring him in.', color: '#3d7bff' };
     runSteps(g, 3, false);
     updateCamera(g, 1);
     g.combat.shoot(); // one tracer + muzzle flash in the frame
@@ -116,16 +124,22 @@ export function stageShot(g, name) {
     return;
   }
   if (name === 'night') {
-    // After dark: driving with the headlights on.
+    // After dark, 3 stars on the run to Bay Beach (m5): headlights,
+    // mission panel and police list all live.
+    const m = g.missions.list.find((q) => q.id === 'm5');
+    g.missions.start(m);
+    document.getElementById('mission-card').classList.remove('show');
     g.dayT = 0.78;
     g.updateDayNight(0);
     putPlayerInCar(g, 0, -120, 0);
-    g.hud.setObjective('Free roam — Neon Bay after dark');
     runSteps(g, 5, true);
     return;
   }
   if (name === 'shop') {
-    // At the shop counter with the buy menu open.
+    // At the shop counter with the buy menu open, first job already running.
+    const m = g.missions.list.find((q) => q.id === 'm1');
+    g.missions.start(m);
+    document.getElementById('mission-card').classList.remove('show');
     g.player.pos.set(40, 0, 104);
     g.player.heading = 0;
     g.player.camYaw = 0;
@@ -136,10 +150,13 @@ export function stageShot(g, name) {
     g.openShop();
     return;
   }
-  // cover: on foot down the middle of Coral Avenue, traffic rolling past.
+  // cover: on foot down the middle of Coral Avenue, first job running,
+  // traffic rolling past.
+  const m = g.missions.list.find((q) => q.id === 'm1');
+  g.missions.start(m);
+  document.getElementById('mission-card').classList.remove('show');
   g.player.pos.set(0, 0, 140);
   g.player.heading = Math.PI;
   g.player.camYaw = Math.PI;
-  g.hud.setObjective('Press M to start your first job');
   runSteps(g, 4, false);
 }

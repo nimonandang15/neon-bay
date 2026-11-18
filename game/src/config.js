@@ -127,6 +127,8 @@ export const MISSIONS = [
     giver: 'Marla Voss',
     briefing:
       'Rook, welcome to Neon Bay. First rule: nobody walks here. Jack any car on the street, then bring it to the Pink Flamingo on Coral Row. The crew is watching.',
+    line: 'First rule, Rook: nobody walks in Neon Bay. Jack a car and bring it to the Pink Flamingo.',
+    doneLine: 'Clean wheels, no heat. You drive like you belong here, Rook.',
     reward: 500,
     steps: [
       { type: 'steal', text: 'Steal a car (walk up to one and press E)' },
@@ -139,6 +141,8 @@ export const MISSIONS = [
     giver: 'Marla Voss',
     briefing:
       'A package is waiting at the Meridian docks, south pier. Pick it up and get it to the Skyline Bar on the north side. Two and a half minutes. The client does not like waiting.',
+    line: 'Package at the Meridian docks, south pier. Skyline Bar, two and a half minutes. Do not keep the client waiting.',
+    doneLine: 'Delivered, on time. The client sends his regards — and his cash.',
     reward: 1200,
     steps: [
       { type: 'goto', text: 'Pick up the package at the Meridian docks', target: { x: -240, z: 240 }, radius: 9 },
@@ -151,6 +155,8 @@ export const MISSIONS = [
     giver: 'Marla Voss',
     briefing:
       'The Bay PD just put three stars on your head, Rook. Stay free for sixty seconds — no cuffs, no coffin — and the heat burns itself out. Drive like the whole city is watching, because it is.',
+    line: 'Three stars, Rook. Stay free for sixty seconds and the heat burns itself out. Drive like the whole city is watching.',
+    doneLine: 'Heat is gone. You made the whole department look slow, Rook.',
     reward: 2000,
     steps: [
       { type: 'survive', text: 'Lose the cops — survive 60 seconds at 3 stars', time: 60, stars: 3 },
@@ -162,6 +168,8 @@ export const MISSIONS = [
     giver: 'Marla Voss',
     briefing:
       'A rat is selling the crew out from a corner in Old Town. He is marked red — take him down before he talks. Three minutes, and make it quiet. Quiet is optional.',
+    line: 'The rat is marked red in Old Town. Take him down before he talks. Three minutes — quiet is optional.',
+    doneLine: 'The rat stopped talking. Permanently. The crew owes you one.',
     reward: 1500,
     steps: [
       { type: 'takedown', text: 'Take down the informant (red marker)', target: { x: -240, z: -120 }, radius: 60, time: 180 },
@@ -173,6 +181,8 @@ export const MISSIONS = [
     giver: 'Marla Voss',
     briefing:
       'Three stars and a full tank, Rook. Get to the Bay Beach car park in two minutes with the PD still on your tail. If they catch you, the crew will not know you.',
+    line: 'Three stars and a full tank. Bay Beach car park, two minutes, PD on your tail. If they catch you, the crew will not know you.',
+    doneLine: 'You outran the whole department with the beach in your mirror. Beautiful.',
     reward: 1800,
     steps: [
       { type: 'escape', text: 'Reach Bay Beach before the timer runs out', target: { x: 0, z: 300 }, radius: 12, time: 120, stars: 3 },
@@ -184,6 +194,8 @@ export const MISSIONS = [
     giver: 'Marla Voss',
     briefing:
       'Vic is holding the Skyline Bar door and the PD wants him gone. Keep him standing for sixty seconds — if Vic falls, the job fails. You have the guns, use them.',
+    line: 'Vic is holding the Skyline Bar door and the PD wants him gone. Sixty seconds, Rook. Keep him standing.',
+    doneLine: 'Vic is still standing, and so is the crew. That was bodyguard work, Rook.',
     reward: 2500,
     steps: [
       { type: 'protect', text: 'Keep Vic alive for 60 seconds', target: { x: 240, z: -240 }, radius: 14, time: 60 },

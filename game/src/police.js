@@ -1,10 +1,52 @@
 // The wanted system: stars rise with every crime, Bay PD interceptors chase the
 // player along the street grid, and officers on foot move in to make the arrest.
+import * as THREE from 'three';
 import { CITY, WANTED, CAR } from './config.js';
 import { makeCar } from './cars.js';
 import { makePed, randomSidewalkSpot } from './peds.js';
 import { nearestStreetCoord, clampToCity, resolveCollisions } from './city.js';
 import { damagePlayer } from './player.js';
+
+const CALLSIGNS = ['IRIS', 'TARPON', 'KESTREL', 'MARLIN', 'GULL', 'SNAPPER', 'ORCA', 'HERON'];
+function newCallsign(rng) {
+  return `${CALLSIGNS[Math.floor(rng.next() * CALLSIGNS.length)]}-${10 + Math.floor(rng.next() * 89)}`;
+}
+
+// Police helicopter: a simple circling air unit with a searchlight cone and
+// a pool of light on the ground. No collision, no shooting — presence only.
+function buildHeli(scene) {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1c2733, roughness: 0.5, metalness: 0.4 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.4, 5.2), bodyMat);
+  group.add(body);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 4.5), bodyMat);
+  tail.position.set(0, 0.3, -4.2);
+  group.add(tail);
+  const glass = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, 0.9, 1.6),
+    new THREE.MeshStandardMaterial({ color: 0x10161f, roughness: 0.15, metalness: 0.6 }),
+  );
+  glass.position.set(0, 0.2, 2.2);
+  group.add(glass);
+  const rotor = new THREE.Mesh(new THREE.BoxGeometry(9, 0.08, 0.5), new THREE.MeshStandardMaterial({ color: 0x222831 }));
+  rotor.position.y = 1.1;
+  group.add(rotor);
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(9, 38, 20, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xfff6c9, transparent: true, opacity: 0.13, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  cone.position.y = -19;
+  group.add(cone);
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(9, 24),
+    new THREE.MeshBasicMaterial({ color: 0xfff6c9, transparent: true, opacity: 0.18, depthWrite: false }),
+  );
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.y = 0.12;
+  scene.add(disc);
+  group.userData = { rotor, disc };
+  return group;
+}
 
 export function createPolice(g) {
   return {
@@ -14,6 +56,7 @@ export function createPolice(g) {
     cars: [],
     officers: [],
     roadblock: [],
+    heli: null,
     addCrime(n, why) {
       const before = this.stars;
       this.stars = Math.min(WANTED.maxStars, this.stars + n);
@@ -40,6 +83,7 @@ function spawnPoliceCar(g) {
   const x = p.x + Math.cos(angle) * 60;
   const z = p.z + Math.sin(angle) * 60;
   const car = makeCar(g.scene, g.rng, 'police', x, z, 0);
+  car.callsign = newCallsign(g.rng);
   car.targetJunction = null;
   g.cars.push(car);
   g.police.cars.push(car);
@@ -53,6 +97,7 @@ function spawnOfficer(g) {
   const x = Math.max(-CITY.bounds, Math.min(CITY.bounds, p.x + g.rng.range(-24, 24)));
   const z = Math.max(-CITY.bounds, Math.min(CITY.bounds, p.z + g.rng.range(-24, 24)));
   const ped = makePed(g.scene, g.rng, 'officer', x, z);
+  ped.callsign = `OFFICER-${10 + Math.floor(g.rng.next() * 89)}`;
   g.peds.push(ped);
   g.police.officers.push(ped);
   return ped;
@@ -103,6 +148,7 @@ export function updatePolice(g, dt) {
     const bx = pp.x + Math.sin(ahead) * 70;
     const bz = pp.z + Math.cos(ahead) * 70;
     const car = makeCar(g.scene, g.rng, 'police', nearestStreetCoord(bx), nearestStreetCoord(bz), ahead + Math.PI / 2);
+    car.callsign = newCallsign(g.rng);
     car.targetSpeed = 0;
     car.speed = 0;
     car.roadblock = true;
@@ -120,6 +166,25 @@ export function updatePolice(g, dt) {
     car.speed = 0;
     car.mesh.position.set(car.pos.x, 0, car.pos.z);
     car.mesh.rotation.y = car.heading;
+  }
+  // Helicopter at 4-5 stars: circles the player with a searchlight.
+  if (pol.stars >= 4 && !pol.heli) {
+    pol.heli = buildHeli(g.scene);
+    g.scene.add(pol.heli);
+    g.hud.toast('Bay PD helicopter overhead — stay out of the spotlight');
+    g.hud.showDialogue('BAY PD DISPATCH', 'RADIO', 'Air One has the spotlight on Rook. All units, close the net.', '#3d7bff', 7000);
+  }
+  if (pol.stars < 4 && pol.heli) {
+    g.scene.remove(pol.heli);
+    g.scene.remove(pol.heli.userData.disc);
+    pol.heli = null;
+  }
+  if (pol.heli) {
+    const t = g.time * 0.5;
+    pol.heli.position.set(pp.x + Math.sin(t) * 26, 38, pp.z + Math.cos(t) * 26);
+    pol.heli.rotation.y = Math.atan2(pp.x - pol.heli.position.x, pp.z - pol.heli.position.z);
+    pol.heli.userData.rotor.rotation.y += dt * 22;
+    pol.heli.userData.disc.position.set(pp.x, 0.12, pp.z);
   }
 
   for (const car of pol.cars) {

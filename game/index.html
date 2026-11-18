@@ -22,26 +22,49 @@
   button.ghost { background: transparent; color: #eef1f5; border: 1px solid #44507a; }
   #hud { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 10; font-weight: 600; }
   #hud.show { display: block; }
-  #hud-top-left { position: absolute; top: 14px; left: 16px; }
+  #hud-top-left { position: absolute; top: 14px; left: 16px; width: 340px; }
+  #mission-panel { background: rgba(8, 12, 24, 0.78); border: 1px solid rgba(255, 230, 0, 0.45); border-left: 4px solid #ffe600; border-radius: 8px; padding: 8px 12px 9px; }
+  #mission-head { display: flex; justify-content: space-between; align-items: baseline; }
+  #mission-num { font-size: 12px; letter-spacing: 0.08em; color: #ffe600; }
+  #mission-timer { font-size: 16px; color: #ffe600; text-shadow: 0 1px 4px #000; }
+  #mission-name { font-size: 16px; color: #fff; letter-spacing: 0.02em; }
+  #objective { margin-top: 3px; font-size: 13px; font-weight: 400; color: #ffe600; text-shadow: 0 1px 4px #000; }
+  #mission-bar { height: 6px; background: rgba(255,255,255,0.18); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  #mission-fill { height: 100%; width: 0%; background: #2ecc71; transition: width 0.3s; }
+  #mission-next { margin-top: 5px; font-size: 11px; color: #9db8ff; letter-spacing: 0.04em; text-shadow: 0 1px 3px #000; }
+  #distance { font-size: 13px; color: #cdd6e4; text-shadow: 0 1px 4px #000; }
+  #police-panel { margin-top: 8px; background: rgba(8, 12, 24, 0.78); border: 1px solid rgba(61, 123, 255, 0.55); border-left: 4px solid #3d7bff; border-radius: 8px; padding: 7px 12px 8px; display: none; }
+  #police-panel.show { display: block; }
+  #police-head { font-size: 11px; letter-spacing: 0.1em; color: #9db8ff; margin-bottom: 3px; }
+  .prow { display: flex; justify-content: space-between; font-size: 12px; line-height: 1.55; }
+  .prow .pcall { color: #eef1f5; }
+  .prow .pdist { color: #cdd6e4; margin-left: 8px; }
+  .prow .pstat { margin-left: auto; font-weight: 800; letter-spacing: 0.03em; }
+  .pstat.ram { color: #ff4757; } .pstat.pursuit { color: #f5d76e; } .pstat.block { color: #ff8f00; } .pstat.spot { color: #ff2e88; } .pstat.foot { color: #9db8ff; }
+  #vitals { position: absolute; left: 16px; bottom: 236px; width: 210px; }
   #health-bar { width: 210px; height: 14px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); border-radius: 7px; overflow: hidden; }
   #health-fill { height: 100%; width: 100%; background: #2ecc71; transition: width 0.2s; }
   #health-text { position: absolute; left: 218px; top: 0; font-size: 13px; text-shadow: 0 1px 3px #000; }
   #armor-bar { width: 210px; height: 9px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); border-radius: 5px; overflow: hidden; margin-top: 3px; }
   #armor-fill { height: 100%; width: 0%; background: #3d7bff; transition: width 0.2s; }
   #armor-text { position: absolute; left: 218px; top: 19px; font-size: 11px; color: #9db8ff; text-shadow: 0 1px 3px #000; }
+  #district-name { position: absolute; left: 16px; bottom: 190px; font-size: 13px; letter-spacing: 0.08em; color: #fff; text-shadow: 0 1px 4px #000; }
+  #rep-wrap { position: absolute; left: 16px; bottom: 212px; width: 168px; }
+  #rep-label { font-size: 10px; letter-spacing: 0.08em; color: #ff8fd0; text-shadow: 0 1px 3px #000; }
+  #rep-bar { height: 5px; background: rgba(255,255,255,0.18); border-radius: 3px; overflow: hidden; margin-top: 2px; }
+  #rep-fill { height: 100%; width: 0%; background: #ff2e88; transition: width 0.3s; }
   #packages { margin-top: 6px; font-size: 13px; color: #ff8fd0; text-shadow: 0 1px 4px #000; }
   #taxi-hint { margin-top: 2px; font-size: 13px; color: #ffe600; text-shadow: 0 1px 4px #000; }
-  #objective { margin-top: 8px; font-size: 14px; color: #ffe600; text-shadow: 0 1px 4px #000; max-width: 340px; }
-  #timer { margin-top: 2px; font-size: 20px; color: #ffe600; text-shadow: 0 1px 4px #000; }
-  #distance { font-size: 13px; color: #cdd6e4; text-shadow: 0 1px 4px #000; }
   #hud-top-right { position: absolute; top: 14px; right: 16px; text-align: right; }
   #stars { font-size: 26px; letter-spacing: 3px; color: #7f8c9b; text-shadow: 0 0 10px rgba(0,0,0,0.8); }
   #cash { font-size: 22px; color: #2ecc71; text-shadow: 0 1px 4px #000; }
+  #clock { font-size: 13px; color: #ffe600; letter-spacing: 0.06em; text-shadow: 0 1px 4px #000; }
   #ammo { font-size: 15px; color: #eef1f5; text-shadow: 0 1px 4px #000; }
   #weapon-name { font-size: 15px; color: #ffe600; text-shadow: 0 1px 4px #000; }
   #weapon-slots { margin-top: 3px; }
-  .wslot { display: inline-block; font-size: 13px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 2px 5px; margin-left: 3px; opacity: 0.55; }
+  .wslot { display: inline-block; font-size: 13px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 2px 5px; margin-left: 3px; opacity: 0.55; text-align: center; min-width: 34px; }
   .wslot b { font-size: 10px; color: #cdd6e4; margin-left: 2px; }
+  .wslot i { display: block; font-style: normal; font-size: 9px; color: #9db8ff; line-height: 1.1; }
   .wslot.cur { opacity: 1; border-color: #ffe600; box-shadow: 0 0 8px rgba(255,230,0,0.5); }
   .wslot.locked { opacity: 0.25; }
   #btn-sound { pointer-events: auto; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid rgba(255,255,255,0.35); padding: 4px 9px; font-size: 14px; border-radius: 8px; margin-top: 6px; }
@@ -49,6 +72,16 @@
   #speedo { position: absolute; right: 20px; bottom: 18px; text-align: right; text-shadow: 0 2px 6px #000; }
   #speed { font-size: 44px; font-weight: 800; line-height: 1; }
   #speed-unit { font-size: 13px; color: #cdd6e4; }
+  #car-name { font-size: 14px; color: #ffe600; letter-spacing: 0.04em; }
+  #car-cond { font-size: 12px; color: #2ecc71; }
+  #radio { position: absolute; right: 20px; bottom: 136px; text-align: right; text-shadow: 0 1px 4px #000; }
+  #radio-station { font-size: 12px; letter-spacing: 0.1em; color: #00e5ff; }
+  #radio-track { font-size: 13px; color: #fff; }
+  #dialogue { position: absolute; left: 50%; bottom: 62px; transform: translateX(-50%); display: none; align-items: flex-start; gap: 10px; width: 520px; max-width: 62vw; background: rgba(8, 12, 24, 0.85); border: 1px solid rgba(255, 46, 136, 0.6); border-radius: 10px; padding: 10px 14px; }
+  #dialogue.show { display: flex; }
+  #dlg-portrait { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 8px; background: #ff2e88; color: #fff; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  #dlg-name { font-size: 12px; letter-spacing: 0.08em; color: #ff8fd0; }
+  #dlg-text { font-size: 14px; font-weight: 400; line-height: 1.45; color: #fff; }
   #hint { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); font-size: 13px; color: #dfe6f2; text-shadow: 0 1px 4px #000; background: rgba(0,0,0,0.45); padding: 6px 12px; border-radius: 8px; white-space: nowrap; }
   #crosshair { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; display: none; }
   #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 4px #000; }
@@ -79,26 +112,42 @@
 
 <div id="hud">
   <div id="hud-top-left">
-    <div id="health-bar"><div id="health-fill"></div></div>
-    <span id="health-text">100</span>
-    <div id="armor-bar"><div id="armor-fill"></div></div>
-    <span id="armor-text">0</span>
-    <div id="objective">Press M to start your first job</div>
-    <div id="timer"></div>
-    <div id="distance"></div>
-    <div id="packages">Packages 0/10</div>
-    <div id="taxi-hint"></div>
+    <div id="mission-panel">
+      <div id="mission-head"><span id="mission-num">FREE ROAM</span><span id="mission-timer"></span></div>
+      <div id="mission-name">Neon Bay</div>
+      <div id="objective">Press M to start your first job</div>
+      <div id="mission-bar"><div id="mission-fill"></div></div>
+      <div id="mission-next">NEXT: Find Marla Voss — press M for a job</div>
+      <div id="distance"></div>
+      <div id="packages">Packages 0/10</div>
+      <div id="taxi-hint"></div>
+    </div>
+    <div id="police-panel">
+      <div id="police-head">BAY PD RESPONSE</div>
+      <div id="police-rows"></div>
+    </div>
   </div>
   <div id="hud-top-right">
     <div id="stars">☆☆☆☆☆</div>
     <div id="cash">$150</div>
+    <div id="clock">FRI 09:36</div>
     <div id="weapon-name">Pistol</div>
     <div id="ammo">◉ 12 / 60</div>
     <div id="weapon-slots"></div>
     <button id="btn-sound" type="button">🔊</button>
   </div>
+  <div id="vitals">
+    <div id="health-bar"><div id="health-fill"></div></div>
+    <span id="health-text">100</span>
+    <div id="armor-bar"><div id="armor-fill"></div></div>
+    <span id="armor-text">0</span>
+  </div>
+  <div id="rep-wrap"><div id="rep-label">REP · ROOKIE</div><div id="rep-bar"><div id="rep-fill"></div></div></div>
+  <div id="district-name">CORAL ROW</div>
   <canvas id="minimap" width="168" height="168"></canvas>
-  <div id="speedo"><span id="speed"></span><br><span id="speed-unit"></span></div>
+  <div id="radio"><div id="radio-station">♪ NEON FM</div><div id="radio-track">Midnight Drive</div></div>
+  <div id="speedo"><span id="speed"></span><br><span id="speed-unit"></span><div id="car-name"></div><div id="car-cond"></div></div>
+  <div id="dialogue"><div id="dlg-portrait">MV</div><div><div id="dlg-name"></div><div id="dlg-text"></div></div></div>
   <div id="hint"></div>
   <div id="crosshair"></div>
   <div id="toast"></div>

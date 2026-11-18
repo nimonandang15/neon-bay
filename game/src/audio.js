@@ -23,11 +23,13 @@ export function createAudio() {
   ];
   // Radio stations: three synth flavours for the drive.
   const STATIONS = [
-    { name: 'Neon FM', chords: CHORDS, tempo: 4000 },
-    { name: 'Bay 88', chords: [[116.54, 138.59, 174.61], [103.83, 123.47, 155.56], [110.0, 130.81, 164.81], [98.0, 116.54, 146.83]], tempo: 4600 },
-    { name: 'Drive Time', chords: [[146.83, 185.0, 220.0], [164.81, 207.65, 246.94], [130.81, 164.81, 196.0], [174.61, 220.0, 261.63]], tempo: 3200 },
+    { name: 'Neon FM', chords: CHORDS, tempo: 4000, tracks: ['Midnight Drive', 'Pink Horizon', 'Chrome Sunset'] },
+    { name: 'Bay 88', chords: [[116.54, 138.59, 174.61], [103.83, 123.47, 155.56], [110.0, 130.81, 164.81], [98.0, 116.54, 146.83]], tempo: 4600, tracks: ['Coral Static', 'Low Tide', 'Harbor Lights'] },
+    { name: 'Drive Time', chords: [[146.83, 185.0, 220.0], [164.81, 207.65, 246.94], [130.81, 164.81, 196.0], [174.61, 220.0, 261.63]], tempo: 3200, tracks: ['Full Throttle', 'Neon Rain', 'Last Exit'] },
   ];
   let station = 0;
+  let track = 0;
+  let trackTimer = 0;
 
   function ensure() {
     if (started) return;
@@ -186,10 +188,23 @@ export function createAudio() {
     },
     nextStation() {
       station = (station + 1) % STATIONS.length;
+      track = 0;
+      trackTimer = 0;
       return STATIONS[station].name;
     },
     stationName() {
       return STATIONS[station].name;
+    },
+    trackName() {
+      return STATIONS[station].tracks[track];
+    },
+    // Rotate the on-air track every ~28 s so the HUD radio display moves.
+    tick(dt) {
+      trackTimer += dt;
+      if (trackTimer >= 28) {
+        trackTimer = 0;
+        track = (track + 1) % STATIONS[station].tracks.length;
+      }
     },
     punch() {
       noiseBurst(0.08, 500, 0.35);

@@ -51,6 +51,7 @@ export function createMissions(g) {
       this.stepIndex = 0;
       this.timer = 0;
       g.hud.showMissionCard(mission);
+      g.hud.showDialogue(mission.giver, 'FIXER', mission.line, '#ff2e88', 8000);
       g.hud.setObjective(this.currentStep().text);
       g.audio.missionStart();
       // Timed first steps (m3 survive, m5 escape) need the clock now;
@@ -116,6 +117,7 @@ export function createMissions(g) {
       g.stats.cashEarned += m.reward;
       g.hud.setCash(g.player.cash);
       g.hud.showBanner(`JOB DONE — ${m.title}`, `+$${m.reward} from ${m.giver}`);
+      g.hud.showDialogue(m.giver, 'FIXER', m.doneLine, '#2ecc71', 8000);
       g.audio.missionComplete();
       g.saveGame();
       this.cleanupActors();

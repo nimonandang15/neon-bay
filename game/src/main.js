@@ -71,6 +71,8 @@ const g = {
   stats: { shotsFired: 0, shotsHit: 0, carsStolen: 0, cashEarned: 0, kills: 0, timePlayed: 0 },
   // Day/night: dayT 0..1 over 300 s; 0.15 is mid-morning.
   dayT: 0.15,
+  day: 4, // FRI
+  prevDayT: 0.15,
   rain: { active: false, timer: 75, points: null, vel: [] },
   headlight: null,
 };
@@ -396,6 +398,8 @@ const fogDay = new THREE.Color(0xa8c6e0);
 const fogNight = new THREE.Color(0x0a0f1e);
 function updateDayNight(dt) {
   g.dayT = (g.dayT + dt / 300) % 1;
+  if (g.dayT < g.prevDayT) g.day += 1;
+  g.prevDayT = g.dayT;
   // 0.25 = noon (full daylight), 0.75 = midnight, 0/0.5 = dawn/dusk.
   const daylight = Math.max(0, 0.5 + 0.5 * Math.cos((g.dayT - 0.25) * Math.PI * 2));
   const sun = g.city.sun;
@@ -517,6 +521,8 @@ function step(dt) {
   g.hud.setSpeed(driving ? p.car.speed * 3.6 : 0, driving);
   g.hud.setCrosshair(p.onFoot || (p.car && (g.weapons.def().driveby)));
   g.hud.drawMinimap(g);
+  g.audio.tick(dt);
+  g.hud.refreshAll(g);
   let hint = '';
   if (nearShop()) {
     hint = 'E — enter Neon Arms & Snacks';
@@ -679,6 +685,17 @@ if (shot) {
   g.hud.setSpeed(driving ? g.player.car.speed * 3.6 : 0, driving);
   g.hud.setHint(driving ? 'W/S — gas & brake · A/D — steer · E — get out · M — job' : 'WASD — move · Shift — sprint · Click — shoot · M — job');
   g.hud.drawMinimap(g);
+  g.hud.refreshAll(g);
+  // Keep the staged dialogue visible for the still, and expose any JS
+  // errors in the (visually hidden) status node for automated checks.
+  if (g.shotDialogue) {
+    const d = g.shotDialogue;
+    g.hud.showDialogue(d.name, d.role, d.text, d.color, 60000);
+  } else if (g.missions.current) {
+    const m = g.missions.current;
+    g.hud.showDialogue(m.giver, 'FIXER', m.line, '#ff2e88', 60000);
+  }
+  document.getElementById('status').textContent = `errors:${JSON.stringify(window.__errors)}`;
   updateCamera(g, 0.5);
   renderer.render(scene, camera);
   window.__shotReady = true;

@@ -1,6 +1,35 @@
 // The HUD: health, wanted stars, cash, speed, mission objective, a live
 // 2D minimap, toasts and banners — all DOM over the WebGL canvas.
-import { CITY, DISTRICTS } from './config.js';
+import { CITY, DISTRICTS, MISSIONS } from './config.js';
+
+const MISSIONS_INDEX = Object.fromEntries(MISSIONS.map((m, i) => [m.id, i]));
+
+// Rows for the police response panel: pursuing cars (callsign, distance,
+// status), officers on foot, and the helicopter spotlight at 4-5 stars.
+function policeRowsFor(g) {
+  const rows = [];
+  const p = g.player.pos;
+  // Helicopter first — it is the most distinctive unit on the board.
+  if (g.police.heli) {
+    rows.push({ call: 'HELI-1', dist: 'AIR', status: 'SPOTLIGHT ON YOU', cls: 'spot' });
+  }
+  for (const car of g.police.cars) {
+    const d = Math.round(Math.hypot(car.pos.x - p.x, car.pos.z - p.z));
+    const blocked = g.police.roadblock.includes(car);
+    rows.push({
+      call: car.callsign || 'UNIT',
+      dist: `${d} m`,
+      status: blocked ? 'ROADBLOCK' : d < 12 ? 'RAMMING' : 'PURSUIT',
+      cls: blocked ? 'block' : d < 12 ? 'ram' : 'pursuit',
+    });
+  }
+  for (const off of g.police.officers) {
+    if (off.protect) continue; // m6 bodyguards are not pursuers
+    const d = Math.round(Math.hypot(off.pos.x - p.x, off.pos.z - p.z));
+    rows.push({ call: off.callsign || 'OFFICER', dist: `${d} m`, status: 'ON FOOT', cls: 'foot' });
+  }
+  return rows.slice(0, 6);
+}
 
 export function createHud() {
   const $ = (id) => document.getElementById(id);
@@ -14,7 +43,7 @@ export function createHud() {
     speed: $('speed'),
     speedUnit: $('speed-unit'),
     objective: $('objective'),
-    timer: $('timer'),
+    timer: $('mission-timer'),
     distance: $('distance'),
     ammo: $('ammo'),
     weaponName: $('weapon-name'),
@@ -33,11 +62,67 @@ export function createHud() {
     minimap: $('minimap'),
     crosshair: $('crosshair'),
     hint: $('hint'),
+    missionNum: $('mission-num'),
+    missionName: $('mission-name'),
+    missionFill: $('mission-fill'),
+    missionNext: $('mission-next'),
+    policePanel: $('police-panel'),
+    policeRows: $('police-rows'),
+    dialogue: $('dialogue'),
+    dlgPortrait: $('dlg-portrait'),
+    dlgName: $('dlg-name'),
+    dlgText: $('dlg-text'),
+    districtName: $('district-name'),
+    repLabel: $('rep-label'),
+    repFill: $('rep-fill'),
+    clock: $('clock'),
+    radioStation: $('radio-station'),
+    radioTrack: $('radio-track'),
+    carName: $('car-name'),
+    carCond: $('car-cond'),
   };
   const mapCtx = el.minimap.getContext('2d');
   let toastTimer = null;
   let bannerTimer = null;
   let hitTimer = null;
+  let dlgTimer = null;
+  // Cached values so per-frame HUD updates only touch the DOM on change.
+  const cache = {};
+  function setText(node, key, value) {
+    if (cache[key] !== value) {
+      cache[key] = value;
+      node.textContent = value;
+    }
+  }
+  function districtFor(x, z) {
+    let best = DISTRICTS[0];
+    let bd = Infinity;
+    for (const d of DISTRICTS) {
+      const dd = (d.x - x) * (d.x - x) + (d.z - z) * (d.z - z);
+      if (dd < bd) { bd = dd; best = d; }
+    }
+    return best.name;
+  }
+  const REP_RANKS = [[400, 'ROOKIE'], [1000, 'HUSTLER'], [2000, 'WHEELMAN'], [Infinity, 'KINGPIN']];
+  function repFor(g) {
+    const pts = g.missions.completed.size * 400 + g.pickups.collected * 100
+      + g.stats.kills * 25 + g.stats.carsStolen * 10;
+    let prev = 0;
+    let rank = 'ROOKIE';
+    for (const [cap, name] of REP_RANKS) {
+      rank = name;
+      if (pts < cap) return { pts, rank, pct: Math.round(((pts - prev) / (cap - prev)) * 100) };
+      prev = cap;
+    }
+    return { pts, rank, pct: 100 };
+  }
+  const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  function clockFor(dayT, day) {
+    const h = (((dayT - 0.25) * 24 + 12) % 24 + 24) % 24;
+    const hh = Math.floor(h);
+    const mm = Math.floor((h - hh) * 60);
+    return `${DAY_NAMES[((day % 7) + 7) % 7]} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  }
 
   return {
     setHealth(hp) {
@@ -51,19 +136,22 @@ export function createHud() {
       el.armor.style.width = `${pct}%`;
       el.armorText.textContent = `${Math.ceil(pct)}`;
     },
-    setWeapon(name, mag, reserve, current, owned) {
+    setWeapon(name, mag, reserve, current, owned, mags, reserves) {
       el.weaponName.textContent = name;
       el.ammo.textContent = mag == null ? '' : `◉ ${mag} / ${reserve}`;
       const slots = [
-        ['1', 'Fists', '✊'], ['2', 'Bat', '🏏'], ['3', 'Pistol', '🔫'],
-        ['4', 'Shotgun', '💥'], ['5', 'SMG', '🔫'], ['6', 'Rifle', '🎯'],
+        ['1', 'Fists', '✊', 'fists'], ['2', 'Bat', '🏏', 'bat'], ['3', 'Pistol', '🔫', 'pistol'],
+        ['4', 'Shotgun', '💥', 'shotgun'], ['5', 'SMG', '🔫', 'smg'], ['6', 'Rifle', '🎯', 'rifle'],
       ];
-      const ids = ['fists', 'bat', 'pistol', 'shotgun', 'smg', 'rifle'];
-      el.weaponSlots.innerHTML = slots.map(([n, label, icon], i) => {
-        const id = ids[i];
+      el.weaponSlots.innerHTML = slots.map(([n, label, icon, id]) => {
         const has = owned[id];
         const cur = id === current;
-        return `<span class="wslot${cur ? ' cur' : ''}${has ? '' : ' locked'}" title="${label}">${icon}<b>${n}</b></span>`;
+        let ammo = '';
+        if (has) {
+          if (id === 'fists' || id === 'bat') ammo = '—';
+          else ammo = `${mags?.[id] ?? 0}/${reserves?.[id] ?? 0}`;
+        }
+        return `<span class="wslot${cur ? ' cur' : ''}${has ? '' : ' locked'}" title="${label}">${icon}<b>${n}</b><i>${ammo}</i></span>`;
       }).join('');
     },
     setPackages(n, total) {
@@ -100,6 +188,94 @@ export function createHud() {
     },
     setAmmo(n) {
       el.ammo.textContent = n == null ? '' : `◉ ${n}`;
+    },
+    // Mission briefing panel (top-left): name + number, objective, stage bar,
+    // NEXT line. Free-roam state when no mission is running.
+    setMission(mission, stepIndex, timerSeconds) {
+      if (!mission) {
+        setText(el.missionNum, 'mnum', 'FREE ROAM');
+        setText(el.missionName, 'mname', 'Neon Bay');
+        setText(el.objective, 'obj', 'Press M to start your first job');
+        el.missionFill.style.width = '0%';
+        setText(el.missionNext, 'mnext', 'NEXT: Find Marla Voss — press M for a job');
+        setText(el.timer, 'mtimer', '');
+        this.setDistance(null);
+        return;
+      }
+      const total = mission.steps.length;
+      const step = mission.steps[stepIndex];
+      const idx = MISSIONS_INDEX[mission.id] ?? 0;
+      setText(el.missionNum, 'mnum', `MISSION ${idx + 1}/6`);
+      setText(el.missionName, 'mname', mission.title.toUpperCase());
+      setText(el.objective, 'obj', step ? step.text : '');
+      el.missionFill.style.width = `${Math.round(((stepIndex + 1) / total) * 100)}%`;
+      const next = mission.steps[stepIndex + 1];
+      setText(el.missionNext, 'mnext', next ? `NEXT: ${next.text}` : 'NEXT: Finish the job');
+      if (timerSeconds != null) this.setTimer(timerSeconds);
+      else setText(el.timer, 'mtimer', '');
+    },
+    // Police response panel: live pursuing units with callsign, distance,
+    // status. Rows: { call, dist, status, cls }. Hidden when empty.
+    setPoliceList(rows) {
+      if (!rows || rows.length === 0) {
+        el.policePanel.classList.remove('show');
+        return;
+      }
+      el.policePanel.classList.add('show');
+      const html = rows.map((r) => `<div class="prow"><span class="pcall">${r.call}</span><span class="pdist">${r.dist}</span><span class="pstat ${r.cls}">${r.status}</span></div>`).join('');
+      if (cache.prows !== html) {
+        cache.prows = html;
+        el.policeRows.innerHTML = html;
+      }
+    },
+    showDialogue(name, role, text, color, ms) {
+      const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+      el.dlgPortrait.textContent = initials;
+      el.dlgPortrait.style.background = color || '#ff2e88';
+      setText(el.dlgName, 'dlgname', `${name.toUpperCase()} · ${role}`);
+      setText(el.dlgText, 'dlgtext', text);
+      el.dialogue.classList.add('show');
+      clearTimeout(dlgTimer);
+      dlgTimer = setTimeout(() => el.dialogue.classList.remove('show'), ms || 6000);
+    },
+    setDistrict(name) {
+      setText(el.districtName, 'district', (name || 'CORAL ROW').toUpperCase());
+    },
+    setRep(g) {
+      const r = repFor(g);
+      setText(el.repLabel, 'rep', `REP · ${r.rank} — ${r.pts.toLocaleString('en-US')} PTS`);
+      el.repFill.style.width = `${r.pct}%`;
+    },
+    setClock(dayT, day) {
+      setText(el.clock, 'clock', clockFor(dayT, day));
+    },
+    setRadio(station, track) {
+      setText(el.radioStation, 'rstation', `♪ ${station}`);
+      setText(el.radioTrack, 'rtrack', track || '');
+    },
+    setVehicle(name, cond, driving) {
+      setText(el.carName, 'carname', driving ? name : '');
+      setText(el.carCond, 'carcond', driving ? `CONDITION ${Math.max(0, Math.round(cond))}%` : '');
+    },
+    // Recompute every HUD panel from the live game state (used in shot mode
+    // and once a second in live play to catch anything the per-frame calls
+    // missed).
+    refreshAll(g) {
+      this.setMission(g.missions.current, g.missions.stepIndex,
+        g.missions.current && g.missions.currentStep() && g.missions.currentStep().time != null
+          ? g.missions.timer : null);
+      // Protect steps show Vic's live HP instead of the static step text.
+      const step = g.missions.current && g.missions.currentStep();
+      if (step && step.type === 'protect' && g.missions.vicPed) {
+        this.setObjective(`Keep Vic alive — Vic ${Math.round(g.missions.vicHp)} HP`);
+      }
+      this.setPoliceList(policeRowsFor(g));
+      this.setDistrict(districtFor(g.player.pos.x, g.player.pos.z));
+      this.setRep(g);
+      this.setClock(g.dayT, g.day);
+      this.setRadio(g.audio.stationName(), g.audio.trackName());
+      const driving = !g.player.onFoot && g.player.car;
+      this.setVehicle(driving ? g.player.car.variantLabel : '', driving ? (g.player.car.hp / g.player.car.maxHp) * 100 : 0, !!driving);
     },
     hitmarker() {
       el.crosshair.classList.add('hit');

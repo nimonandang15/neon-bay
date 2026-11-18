@@ -88,7 +88,7 @@ export function createWeapons(g) {
     const def = WEAPONS[state.current];
     const mag = def.melee ? null : state.mag[state.current];
     const res = def.melee ? null : state.reserve[state.current];
-    g.hud.setWeapon(def.name, mag, res, state.current, state.owned);
+    g.hud.setWeapon(def.name, mag, res, state.current, state.owned, state.mag, state.reserve);
   }
 
   return {
