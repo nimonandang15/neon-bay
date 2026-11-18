@@ -1,8 +1,9 @@
 // Cars: a stylised box-built car mesh, traffic that follows the street grid,
 // and police interceptors. Every car is { mesh, pos, heading, speed, kind, hp }.
 import * as THREE from 'three';
-import { CITY, CAR, PALETTE } from './config.js';
+import { CITY, CAR, PALETTE, VEHICLES } from './config.js';
 import { clampToCity, nearestStreetCoord, resolveCollisions } from './city.js';
+import { damagePlayer } from './player.js';
 
 const bodyGeo = new THREE.BoxGeometry(1, 1, 1);
 const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.35, 10);
@@ -10,17 +11,43 @@ const glassMat = new THREE.MeshStandardMaterial({ color: 0x10161f, roughness: 0.
 const tyreMat = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.95 });
 const chromeMat = new THREE.MeshStandardMaterial({ color: 0xd8dee6, roughness: 0.25, metalness: 0.8 });
 
-export function buildCarMesh(color, kind) {
+export function buildCarMesh(color, kind, variant) {
   const group = new THREE.Group();
   const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.45 });
   const body = new THREE.Mesh(bodyGeo, paint);
-  body.scale.set(2.0, 0.62, 4.4);
-  body.position.y = 0.62;
+  if (variant === 'truck') {
+    body.scale.set(2.1, 0.9, 4.8);
+    body.position.y = 0.75;
+  } else if (variant === 'sport') {
+    body.scale.set(1.9, 0.5, 4.5);
+    body.position.y = 0.55;
+  } else {
+    body.scale.set(2.0, 0.62, 4.4);
+    body.position.y = 0.62;
+  }
   body.castShadow = true;
   group.add(body);
   const cabin = new THREE.Mesh(bodyGeo, glassMat);
-  cabin.scale.set(1.7, 0.55, 2.1);
-  cabin.position.set(0, 1.18, -0.25);
+  if (variant === 'truck') {
+    cabin.scale.set(1.8, 0.7, 1.4);
+    cabin.position.set(0, 1.5, 1.2);
+    // Open bed.
+    const bed = new THREE.Mesh(bodyGeo, paint);
+    bed.scale.set(1.9, 0.3, 2.4);
+    bed.position.set(0, 1.15, -1.2);
+    group.add(bed);
+  } else if (variant === 'sport') {
+    cabin.scale.set(1.6, 0.45, 2.0);
+    cabin.position.set(0, 1.0, -0.3);
+    // Spoiler.
+    const wing = new THREE.Mesh(bodyGeo, paint);
+    wing.scale.set(1.7, 0.08, 0.4);
+    wing.position.set(0, 1.05, -2.1);
+    group.add(wing);
+  } else {
+    cabin.scale.set(1.7, 0.55, 2.1);
+    cabin.position.set(0, 1.18, -0.25);
+  }
   cabin.castShadow = true;
   group.add(cabin);
   const hood = new THREE.Mesh(bodyGeo, paint);
@@ -66,17 +93,31 @@ export function buildCarMesh(color, kind) {
 
 export function makeCar(scene, rng, kind, x, z, heading) {
   const color = kind === 'police' ? PALETTE.police : rng.pick(PALETTE.car);
-  const mesh = buildCarMesh(color, kind);
+  // Sedans are common, sports cars quick, trucks tough.
+  let variant = 'sedan';
+  if (kind === 'traffic') {
+    const r = rng.next();
+    variant = r < 0.6 ? 'sedan' : r < 0.82 ? 'sport' : 'truck';
+  } else if (kind === 'police') {
+    variant = 'sport';
+  }
+  const mesh = buildCarMesh(color, kind, variant);
   mesh.position.set(x, 0, z);
   mesh.rotation.y = heading;
   scene.add(mesh);
+  const stats = VEHICLES[variant];
   return {
     mesh,
     kind,
+    variant,
+    variantLabel: stats.label,
+    maxSpeed: kind === 'police' ? CAR.policeMaxSpeed : stats.maxSpeed,
+    accel: stats.accel,
     pos: mesh.position,
     heading,
     speed: 0,
-    hp: kind === 'police' ? CAR.policeHp : CAR.playerCarHp,
+    hp: kind === 'police' ? CAR.policeHp : stats.hp,
+    maxHp: kind === 'police' ? CAR.policeHp : stats.hp,
     driver: kind === 'traffic',
     steer: 0,
     stuck: 0,
@@ -153,14 +194,14 @@ export function updatePlayerCar(g, dt, input) {
   if (!car) return;
   const ax = input.axis();
   const target = ax.forward;
-  if (target > 0) car.speed += CAR.accel * dt;
+  if (target > 0) car.speed += car.accel * dt;
   else if (target < 0) {
     if (car.speed > 0.5) car.speed -= CAR.brake * dt;
     else car.speed -= CAR.reverseAccel * dt;
   } else {
     car.speed -= Math.sign(car.speed) * Math.min(Math.abs(car.speed), 9 * dt);
   }
-  car.speed = Math.max(-CAR.maxReverse, Math.min(CAR.maxSpeed, car.speed));
+  car.speed = Math.max(-CAR.maxReverse, Math.min(car.maxSpeed, car.speed));
   const steerInput = ax.strafe;
   // Radius-based steering: the turn rate grows with speed but the turning
   // radius stays drivable in the city grid (about 14 units at a crawl,
@@ -174,7 +215,7 @@ export function updatePlayerCar(g, dt, input) {
   car.pos.z += Math.cos(car.heading) * car.speed * dt;
   const hit = resolveCollisions(g.city.colliders, car.pos, 2.2);
   if (hit.hit) {
-    if (Math.abs(car.speed) > 14) g.player.hp = Math.max(0, g.player.hp - 4);
+    if (Math.abs(car.speed) > 14) damagePlayer(g, 4);
     car.speed *= 0.55;
   }
   clampToCity(car.pos);
@@ -198,6 +239,7 @@ export function killPed(g, ped, byCar) {
   ped.deadTimer = 0;
   ped.mesh.rotation.z = Math.PI / 2;
   ped.mesh.position.y = 0.35;
+  g.stats.kills += 1;
   if (byCar || true) g.police.addCrime(1, 'pedestrian down');
   g.audio.thud();
 }

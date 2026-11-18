@@ -1,7 +1,8 @@
 // Neon Bay — an original open-world crime game for gta6-01, built in this session:
 // explore a sun-soaked grid city on foot and by car, steal cars, outrun the Bay PD
-// wanted system, run three story jobs for fixer Marla Voss, fight with fists and a
-// pistol, and save progress in the browser. Three.js (vendored under game/vendor)
+// wanted system, run six story jobs for fixer Marla Voss, fight with six weapons
+// (fists to rifle), wear body armor, shop for ammo, drive taxis, hunt hidden
+// packages, and save progress in the browser. Three.js (vendored under game/vendor)
 // renders the city; every system in game/src was written for this entry.
 // The program hands the game in: it copies game/ and screenshots/ from beside this
 // file to /output and writes /output/dossier.json, the summary the judge reads,

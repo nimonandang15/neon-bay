@@ -6,6 +6,8 @@ export const ACT_PAUSE = 4;
 export const ACT_MISSION = 8;
 export const ACT_RELOAD = 16;
 export const ACT_CONFIRM = 32;
+export const ACT_RADIO = 64;
+export const ACT_TAXI = 128;
 
 const FORWARD = new Set(['KeyW', 'ArrowUp']);
 const BACK = new Set(['KeyS', 'ArrowDown']);
@@ -18,6 +20,9 @@ const PAUSE = new Set(['KeyP', 'Escape']);
 const MISSION = new Set(['KeyM']);
 const RELOAD = new Set(['KeyR']);
 const CONFIRM = new Set(['Space', 'Enter']);
+const RADIO = new Set(['KeyQ']);
+const TAXI = new Set(['KeyT']);
+const WEAPON_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'];
 
 export function createInput(canvas) {
   const keys = new Set();
@@ -28,6 +33,9 @@ export function createInput(canvas) {
   let lastX = 0;
   let lastY = 0;
   let mouseDown = false;
+  let downMoved = 0;
+  let weaponSlot = 0;
+  let wheelDelta = 0;
 
   window.addEventListener('keydown', (event) => {
     if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA')) return;
@@ -39,6 +47,12 @@ export function createInput(canvas) {
       else if (MISSION.has(event.code)) actions |= ACT_MISSION;
       else if (RELOAD.has(event.code)) actions |= ACT_RELOAD;
       else if (CONFIRM.has(event.code)) actions |= ACT_CONFIRM;
+      else if (RADIO.has(event.code)) actions |= ACT_RADIO;
+      else if (TAXI.has(event.code)) actions |= ACT_TAXI;
+      else {
+        const wi = WEAPON_KEYS.indexOf(event.code);
+        if (wi >= 0) weaponSlot = wi + 1;
+      }
     }
     if (FORWARD.has(event.code) || BACK.has(event.code) || event.code === 'Space') event.preventDefault();
   });
@@ -47,6 +61,7 @@ export function createInput(canvas) {
 
   canvas.addEventListener('pointerdown', (event) => {
     mouseDown = true;
+    downMoved = 0;
     dragging = true;
     lastX = event.clientX;
     lastY = event.clientY;
@@ -54,8 +69,11 @@ export function createInput(canvas) {
   });
   canvas.addEventListener('pointermove', (event) => {
     if (!dragging) return;
-    dragX += event.clientX - lastX;
-    dragY += event.clientY - lastY;
+    const mx = event.clientX - lastX;
+    const my = event.clientY - lastY;
+    downMoved += Math.abs(mx) + Math.abs(my);
+    dragX += mx;
+    dragY += my;
     lastX = event.clientX;
     lastY = event.clientY;
   });
@@ -66,6 +84,10 @@ export function createInput(canvas) {
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+  canvas.addEventListener('wheel', (event) => {
+    wheelDelta += event.deltaY > 0 ? 1 : -1;
+    event.preventDefault();
+  }, { passive: false });
 
   return {
     axis() {
@@ -92,6 +114,20 @@ export function createInput(canvas) {
     takeMouseDown() {
       const d = mouseDown;
       mouseDown = false;
+      return d;
+    },
+    // Held fire (auto weapons): true only for a real click, not a camera drag.
+    mouseHeld() {
+      return mouseDown && downMoved < 8;
+    },
+    takeWeaponSlot() {
+      const s = weaponSlot;
+      weaponSlot = 0;
+      return s;
+    },
+    takeWheel() {
+      const d = wheelDelta;
+      wheelDelta = 0;
       return d;
     },
     anyKey() {

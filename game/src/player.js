@@ -17,6 +17,8 @@ export function createPlayer(scene, x, z) {
     camYaw: Math.PI,
     camPitch: 0.32,
     hp: PLAYER.maxHp,
+    armor: 0,
+    lastDamageAt: -99,
     cash: 150,
     onFoot: true,
     car: null,
@@ -26,6 +28,24 @@ export function createPlayer(scene, x, z) {
     walkPhase: 0,
     moving: false,
   };
+}
+
+// Damage routes through armor first, then health. Returns true if wasted.
+export function damagePlayer(g, amount) {
+  const p = g.player;
+  if (p.hp <= 0) return false;
+  p.lastDamageAt = g.time;
+  let rest = amount;
+  if (p.armor > 0) {
+    const absorbed = Math.min(p.armor, rest);
+    p.armor -= absorbed;
+    rest -= absorbed;
+  }
+  if (rest > 0) p.hp = Math.max(0, p.hp - rest);
+  g.hud.flashDamage();
+  g.audio.thud();
+  if (p.hp <= 0) g.gameOver('wasted');
+  return p.hp <= 0;
 }
 
 // On-foot movement, camera-relative: W runs away from the camera.
@@ -89,6 +109,7 @@ export function tryEnterExitCar(g) {
     }
     if (best.kind === 'traffic' && best.driver) {
       best.driver = false;
+      g.stats.carsStolen += 1;
       g.police.addCrime(1, 'car jacked');
       g.hud.toast('Car jacked! The Bay PD noticed.');
       g.audio.sirenBlip();

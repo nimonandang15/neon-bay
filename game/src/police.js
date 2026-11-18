@@ -4,6 +4,7 @@ import { CITY, WANTED, CAR } from './config.js';
 import { makeCar } from './cars.js';
 import { makePed, randomSidewalkSpot } from './peds.js';
 import { nearestStreetCoord, clampToCity, resolveCollisions } from './city.js';
+import { damagePlayer } from './player.js';
 
 export function createPolice(g) {
   return {
@@ -12,6 +13,7 @@ export function createPolice(g) {
     decayTimer: 0,
     cars: [],
     officers: [],
+    roadblock: [],
     addCrime(n, why) {
       const before = this.stars;
       this.stars = Math.min(WANTED.maxStars, this.stars + n);
@@ -84,12 +86,42 @@ export function updatePolice(g, dt) {
     g.cars.splice(g.cars.indexOf(car), 1);
   }
   while (pol.officers.length > wantOfficers) {
-    const ped = pol.officers.pop();
+    // Mission protect officers (m6) stay until the job ends.
+    const idx = pol.officers.findIndex((o) => !o.protect);
+    if (idx < 0) break;
+    const ped = pol.officers.splice(idx, 1)[0];
     g.scene.remove(ped.mesh);
     g.peds.splice(g.peds.indexOf(ped), 1);
   }
 
+  // Roadblocks at 4-5 stars: two interceptors parked across the street
+  // ahead of the player. They vanish when the heat drops.
   const pp = g.player.pos;
+  const wantBlock = pol.stars >= 4 ? 2 : 0;
+  if (pol.roadblock.length < wantBlock) {
+    const ahead = g.player.car ? g.player.car.heading : g.player.heading;
+    const bx = pp.x + Math.sin(ahead) * 70;
+    const bz = pp.z + Math.cos(ahead) * 70;
+    const car = makeCar(g.scene, g.rng, 'police', nearestStreetCoord(bx), nearestStreetCoord(bz), ahead + Math.PI / 2);
+    car.targetSpeed = 0;
+    car.speed = 0;
+    car.roadblock = true;
+    g.cars.push(car);
+    pol.roadblock.push(car);
+    if (pol.roadblock.length === 1) g.hud.toast('Roadblock ahead — the PD sealed the street');
+  }
+  while (pol.roadblock.length > wantBlock) {
+    const car = pol.roadblock.pop();
+    g.scene.remove(car.mesh);
+    g.cars.splice(g.cars.indexOf(car), 1);
+  }
+  // Roadblock cars sit still; keep them out of the pursuit loop.
+  for (const car of pol.roadblock) {
+    car.speed = 0;
+    car.mesh.position.set(car.pos.x, 0, car.pos.z);
+    car.mesh.rotation.y = car.heading;
+  }
+
   for (const car of pol.cars) {
     const dx = pp.x - car.pos.x;
     const dz = pp.z - car.pos.z;
@@ -138,13 +170,10 @@ export function updatePolice(g, dt) {
     if (g.player.onFoot) {
       if (dist < 2.6 && Math.abs(car.speed) > 3 && car.ramCd <= 0) {
         car.ramCd = 2.5;
-        g.player.hp = Math.max(0, g.player.hp - 12);
-        g.hud.flashDamage();
-        g.audio.thud();
+        damagePlayer(g, 12);
         const push = 9;
         g.player.pos.x += (dx / (dist || 1)) * -push * 0.3;
         g.player.pos.z += (dz / (dist || 1)) * -push * 0.3;
-        if (g.player.hp <= 0) g.gameOver('wasted');
       }
     } else if (g.player.car) {
       const pc = g.player.car;

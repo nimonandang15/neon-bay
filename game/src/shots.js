@@ -56,6 +56,7 @@ function runSteps(g, seconds, drive, segments) {
     updatePolice(g, STEP);
     g.missions.update(STEP);
     g.effects.update(STEP);
+    if (g.updateDayNight) g.updateDayNight(STEP);
   }
   for (let i = 0; i < 8; i += 1) updateCamera(g, 1);
 }
@@ -84,42 +85,55 @@ export function stageShot(g, name) {
     return;
   }
   if (name === 'chase') {
-    putPlayerInCar(g, 0, -160, 0);
+    // On foot with the SMG out, 3 stars, armor on, officers closing in —
+    // the weapon panel and armor bar are the point of this frame.
+    g.player.pos.set(0, 0, 140);
+    g.player.heading = Math.PI;
+    g.player.camYaw = Math.PI;
+    g.weapons.give('smg', true);
+    g.player.armor = 60;
+    g.player.hp = 75;
     g.police.setStars(3);
     g.hud.setObjective('Lose the cops — survive 60 seconds at 3 stars');
-    // Bring the interceptors into the frame: they spawn across the grid,
-    // so stage them on the player's tail — from here the chase is real.
-    updatePolice(g, 0.01);
-    g.police.cars.forEach((c, i) => {
-      c.pos.set(0, 0, -160 - 12 - i * 8);
-      c.heading = 0;
-      c.speed = 30;
-      c.targetJunction = null; // recompute the route from the staged spot
-    });
-    // Pull the camera back so the interceptors sit between the lens and the
-    // player car instead of behind the lens.
-    g.shotCamBack = 26;
-    // Get up to speed first, then run until a real interceptor is on the
-    // tail (12–15 units — between the pulled-back camera and the player),
-    // so the frame shows the chase instead of an empty road behind.
-    runSteps(g, 3, true);
-    let t = 0;
-    while (t < 12) {
-      runSteps(g, 0.25, true);
-      t += 0.25;
-      const close = g.police.cars.some((c) => {
-        const d = Math.hypot(c.pos.x - g.player.pos.x, c.pos.z - g.player.pos.z);
-        return d > 12 && d < 15;
-      });
-      if (close) break;
-    }
+    runSteps(g, 3, false);
+    updateCamera(g, 1);
+    g.combat.shoot(); // one tracer + muzzle flash in the frame
     return;
   }
   if (name === 'mission') {
-    const m = g.missions.list.find((q) => q.id === 'm2');
+    // The Informant (m4): rifle out, the red-marked target down the avenue.
+    const m = g.missions.list.find((q) => q.id === 'm4');
     g.missions.start(m);
-    putPlayerInCar(g, -240, 150, 0);
+    // The briefing card covers the frame in a still — hide it for the shot.
+    document.getElementById('mission-card').classList.remove('show');
+    g.weapons.give('rifle', true);
+    g.player.pos.set(-240, 0, -80);
+    g.player.heading = Math.PI;
+    g.player.camYaw = Math.PI;
+    runSteps(g, 2, false);
+    updateCamera(g, 1);
+    g.combat.shoot(); // a round downrange at the target
+    return;
+  }
+  if (name === 'night') {
+    // After dark: driving with the headlights on.
+    g.dayT = 0.78;
+    g.updateDayNight(0);
+    putPlayerInCar(g, 0, -120, 0);
+    g.hud.setObjective('Free roam — Neon Bay after dark');
     runSteps(g, 5, true);
+    return;
+  }
+  if (name === 'shop') {
+    // At the shop counter with the buy menu open.
+    g.player.pos.set(40, 0, 104);
+    g.player.heading = 0;
+    g.player.camYaw = 0;
+    g.player.cash = 450;
+    g.hud.setCash(450);
+    runSteps(g, 1, false);
+    updateCamera(g, 1);
+    g.openShop();
     return;
   }
   // cover: on foot down the middle of Coral Avenue, traffic rolling past.

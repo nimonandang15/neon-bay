@@ -26,6 +26,11 @@
   #health-bar { width: 210px; height: 14px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); border-radius: 7px; overflow: hidden; }
   #health-fill { height: 100%; width: 100%; background: #2ecc71; transition: width 0.2s; }
   #health-text { position: absolute; left: 218px; top: 0; font-size: 13px; text-shadow: 0 1px 3px #000; }
+  #armor-bar { width: 210px; height: 9px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35); border-radius: 5px; overflow: hidden; margin-top: 3px; }
+  #armor-fill { height: 100%; width: 0%; background: #3d7bff; transition: width 0.2s; }
+  #armor-text { position: absolute; left: 218px; top: 19px; font-size: 11px; color: #9db8ff; text-shadow: 0 1px 3px #000; }
+  #packages { margin-top: 6px; font-size: 13px; color: #ff8fd0; text-shadow: 0 1px 4px #000; }
+  #taxi-hint { margin-top: 2px; font-size: 13px; color: #ffe600; text-shadow: 0 1px 4px #000; }
   #objective { margin-top: 8px; font-size: 14px; color: #ffe600; text-shadow: 0 1px 4px #000; max-width: 340px; }
   #timer { margin-top: 2px; font-size: 20px; color: #ffe600; text-shadow: 0 1px 4px #000; }
   #distance { font-size: 13px; color: #cdd6e4; text-shadow: 0 1px 4px #000; }
@@ -33,6 +38,12 @@
   #stars { font-size: 26px; letter-spacing: 3px; color: #7f8c9b; text-shadow: 0 0 10px rgba(0,0,0,0.8); }
   #cash { font-size: 22px; color: #2ecc71; text-shadow: 0 1px 4px #000; }
   #ammo { font-size: 15px; color: #eef1f5; text-shadow: 0 1px 4px #000; }
+  #weapon-name { font-size: 15px; color: #ffe600; text-shadow: 0 1px 4px #000; }
+  #weapon-slots { margin-top: 3px; }
+  .wslot { display: inline-block; font-size: 13px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 2px 5px; margin-left: 3px; opacity: 0.55; }
+  .wslot b { font-size: 10px; color: #cdd6e4; margin-left: 2px; }
+  .wslot.cur { opacity: 1; border-color: #ffe600; box-shadow: 0 0 8px rgba(255,230,0,0.5); }
+  .wslot.locked { opacity: 0.25; }
   #btn-sound { pointer-events: auto; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid rgba(255,255,255,0.35); padding: 4px 9px; font-size: 14px; border-radius: 8px; margin-top: 6px; }
   #minimap { position: absolute; left: 16px; bottom: 16px; width: 168px; height: 168px; border: 2px solid rgba(255,255,255,0.4); border-radius: 10px; background: rgba(10,16,28,0.8); }
   #speedo { position: absolute; right: 20px; bottom: 18px; text-align: right; text-shadow: 0 2px 6px #000; }
@@ -43,6 +54,7 @@
   #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 4px #000; }
   #crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
   #crosshair::after { left: 0; top: 8px; width: 18px; height: 2px; }
+  #crosshair.hit::before, #crosshair.hit::after { background: #ff4757; }
   #toast { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); background: rgba(0,0,0,0.65); padding: 9px 18px; border-radius: 10px; font-size: 15px; opacity: 0; transition: opacity 0.25s; white-space: nowrap; }
   #toast.show { opacity: 1; }
   #banner { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%) scale(0.96); text-align: center; opacity: 0; transition: opacity 0.3s, transform 0.3s; }
@@ -69,14 +81,20 @@
   <div id="hud-top-left">
     <div id="health-bar"><div id="health-fill"></div></div>
     <span id="health-text">100</span>
+    <div id="armor-bar"><div id="armor-fill"></div></div>
+    <span id="armor-text">0</span>
     <div id="objective">Press M to start your first job</div>
     <div id="timer"></div>
     <div id="distance"></div>
+    <div id="packages">Packages 0/10</div>
+    <div id="taxi-hint"></div>
   </div>
   <div id="hud-top-right">
     <div id="stars">☆☆☆☆☆</div>
     <div id="cash">$150</div>
-    <div id="ammo">◉ 12</div>
+    <div id="weapon-name">Pistol</div>
+    <div id="ammo">◉ 12 / 60</div>
+    <div id="weapon-slots"></div>
     <button id="btn-sound" type="button">🔊</button>
   </div>
   <canvas id="minimap" width="168" height="168"></canvas>
@@ -97,7 +115,8 @@
     <div class="controls">
       <b>WASD</b> move / drive &nbsp;·&nbsp; <b>Shift</b> sprint<br>
       <b>Mouse drag</b> look around &nbsp;·&nbsp; <b>Click</b> shoot &nbsp;·&nbsp; <b>F</b> punch<br>
-      <b>E</b> steal / exit car &nbsp;·&nbsp; <b>R</b> reload &nbsp;·&nbsp; <b>M</b> start job &nbsp;·&nbsp; <b>P</b> pause
+      <b>1–6 / wheel</b> switch weapon &nbsp;·&nbsp; <b>R</b> reload &nbsp;·&nbsp; <b>Q</b> radio<br>
+      <b>E</b> steal / exit car / shop &nbsp;·&nbsp; <b>T</b> taxi &nbsp;·&nbsp; <b>M</b> start job &nbsp;·&nbsp; <b>P</b> pause
     </div>
     <div>
       <button id="btn-start" type="button">New game</button>
@@ -111,8 +130,18 @@
   <div class="panel">
     <h2>PAUSED</h2>
     <p>Neon Bay waits for no one — except right now.</p>
-    <button id="btn-resume" type="button">Resume</button>
-    <button id="btn-quit-title" type="button" class="ghost">Quit to title</button>
+    <p id="stats-line" style="font-size:13px; color:#cdd6e4; text-align:left; display:inline-block; line-height:1.8"></p>
+    <div><button id="btn-resume" type="button">Resume</button>
+    <button id="btn-quit-title" type="button" class="ghost">Quit to title</button></div>
+  </div>
+</div>
+
+<div id="screen-shop" class="overlay">
+  <div class="panel">
+    <h2 id="shop-title">NEON ARMS &amp; SNACKS</h2>
+    <p id="shop-cash"></p>
+    <div id="shop-items" style="text-align:left"></div>
+    <button id="btn-shop-close" type="button" class="ghost">Close (Esc)</button>
   </div>
 </div>
 

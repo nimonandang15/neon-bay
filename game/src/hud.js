@@ -1,12 +1,14 @@
 // The HUD: health, wanted stars, cash, speed, mission objective, a live
 // 2D minimap, toasts and banners — all DOM over the WebGL canvas.
-import { CITY } from './config.js';
+import { CITY, DISTRICTS } from './config.js';
 
 export function createHud() {
   const $ = (id) => document.getElementById(id);
   const el = {
     health: $('health-fill'),
     healthText: $('health-text'),
+    armor: $('armor-fill'),
+    armorText: $('armor-text'),
     stars: $('stars'),
     cash: $('cash'),
     speed: $('speed'),
@@ -15,6 +17,10 @@ export function createHud() {
     timer: $('timer'),
     distance: $('distance'),
     ammo: $('ammo'),
+    weaponName: $('weapon-name'),
+    weaponSlots: $('weapon-slots'),
+    packages: $('packages'),
+    taxiHint: $('taxi-hint'),
     toast: $('toast'),
     banner: $('banner'),
     bannerTitle: $('banner-title'),
@@ -31,6 +37,7 @@ export function createHud() {
   const mapCtx = el.minimap.getContext('2d');
   let toastTimer = null;
   let bannerTimer = null;
+  let hitTimer = null;
 
   return {
     setHealth(hp) {
@@ -38,6 +45,32 @@ export function createHud() {
       el.health.style.width = `${pct}%`;
       el.health.style.background = pct > 50 ? '#2ecc71' : pct > 25 ? '#f39c12' : '#e74c3c';
       el.healthText.textContent = `${Math.ceil(pct)}`;
+    },
+    setArmor(a) {
+      const pct = Math.max(0, Math.min(100, a));
+      el.armor.style.width = `${pct}%`;
+      el.armorText.textContent = `${Math.ceil(pct)}`;
+    },
+    setWeapon(name, mag, reserve, current, owned) {
+      el.weaponName.textContent = name;
+      el.ammo.textContent = mag == null ? '' : `◉ ${mag} / ${reserve}`;
+      const slots = [
+        ['1', 'Fists', '✊'], ['2', 'Bat', '🏏'], ['3', 'Pistol', '🔫'],
+        ['4', 'Shotgun', '💥'], ['5', 'SMG', '🔫'], ['6', 'Rifle', '🎯'],
+      ];
+      const ids = ['fists', 'bat', 'pistol', 'shotgun', 'smg', 'rifle'];
+      el.weaponSlots.innerHTML = slots.map(([n, label, icon], i) => {
+        const id = ids[i];
+        const has = owned[id];
+        const cur = id === current;
+        return `<span class="wslot${cur ? ' cur' : ''}${has ? '' : ' locked'}" title="${label}">${icon}<b>${n}</b></span>`;
+      }).join('');
+    },
+    setPackages(n, total) {
+      el.packages.textContent = `Packages ${n}/${total}`;
+    },
+    setTaxiHint(text) {
+      el.taxiHint.textContent = text || '';
     },
     setStars(n) {
       el.stars.textContent = '★'.repeat(n) + '☆'.repeat(5 - n);
@@ -67,6 +100,11 @@ export function createHud() {
     },
     setAmmo(n) {
       el.ammo.textContent = n == null ? '' : `◉ ${n}`;
+    },
+    hitmarker() {
+      el.crosshair.classList.add('hit');
+      clearTimeout(hitTimer);
+      hitTimer = setTimeout(() => el.crosshair.classList.remove('hit'), 160);
     },
     setHint(text) {
       el.hint.textContent = text || '';
@@ -136,6 +174,19 @@ export function createHud() {
         ctx.arc(toMap(step.target.x), toMap(step.target.z), pulse, 0, Math.PI * 2);
         ctx.stroke();
         dot(step.target.x, step.target.z, '#ff2e88', 3.5);
+      }
+      // Taxi passenger / destination.
+      if (g.pickups.taxi) {
+        const tx = g.pickups.taxi;
+        if (tx.riding) dot(tx.dest.x, tx.dest.z, '#ffe600', 4);
+        else dot(tx.waiting.x, tx.waiting.z, '#ffe600', 3);
+      }
+      // Named districts.
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      for (const d of DISTRICTS) {
+        ctx.fillText(d.name, toMap(d.x), toMap(d.z));
       }
       // Police.
       for (const car of g.police.cars) dot(car.pos.x, car.pos.z, '#3d7bff', 3);

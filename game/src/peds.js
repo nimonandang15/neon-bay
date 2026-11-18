@@ -59,6 +59,9 @@ export function makePed(scene, rng, kind, x, z) {
     pos: mesh.position,
     heading: rng.range(0, Math.PI * 2),
     speed: 0,
+    // Officers take several hits, the mission target more; bystanders few.
+    hp: officer ? 100 : kind === 'target' ? 150 : 50,
+    maxHp: officer ? 100 : kind === 'target' ? 150 : 50,
     state: 'walk',
     target: null,
     dead: false,
@@ -68,6 +71,8 @@ export function makePed(scene, rng, kind, x, z) {
     // Sidewalk strolling: pick a street and a direction, walk to the next corner.
     axis: rng.chance(0.5) ? 'x' : 'z',
     dir: rng.chance(0.5) ? 1 : -1,
+    // A little variety: some walk faster, some slower.
+    pace: rng.range(0.8, 1.25),
   };
 }
 
@@ -104,20 +109,52 @@ export function updatePeds(g, dt) {
     const danger = (playerCar && Math.abs(playerCar.speed) > 8 && distP < PED.fleeRadius)
       || (!playerCar && g.player.shotRecently > 0 && distP < 14)
       || (g.police.stars >= 3 && distP < 6);
-    if (ped.kind === 'officer') {
+    if (ped.kind === 'officer' || ped.kind === 'target') {
       // Officers run the player down; contact builds the busted meter.
-      if (distP < 1.6) {
+      // The mission target runs from the player instead. Protect officers
+      // (mission m6) go for Vic, not the player.
+      if (ped.kind === 'target') {
+        const sp = PED.runSpeed * 1.05;
+        ped.heading = Math.atan2(-dx, -dz);
+        ped.pos.x += Math.sin(ped.heading) * sp * dt;
+        ped.pos.z += Math.cos(ped.heading) * sp * dt;
+        ped.walkPhase += dt * 11;
+        if (distP > 30) ped.state = 'walk';
+      } else if (ped.protect && g.missions.vicPed && !g.missions.vicPed.dead) {
+        const vic = g.missions.vicPed;
+        const vx = vic.pos.x - ped.pos.x;
+        const vz = vic.pos.z - ped.pos.z;
+        const vd = Math.hypot(vx, vz);
+        ped.heading = Math.atan2(vx, vz);
+        if (vd < 1.6) {
+          g.missions.vicHp = Math.max(0, g.missions.vicHp - 3 * dt);
+          if (g.missions.vicHp <= 0 && !vic.dead) {
+            vic.dead = true;
+            vic.deadTimer = 0;
+            vic.mesh.rotation.z = Math.PI / 2;
+            vic.mesh.position.y = 0.35;
+          }
+        } else {
+          const sp = PED.runSpeed * 1.15;
+          ped.pos.x += Math.sin(ped.heading) * sp * dt;
+          ped.pos.z += Math.cos(ped.heading) * sp * dt;
+          ped.walkPhase += dt * 11;
+        }
+      } else if (distP < 1.6) {
         ped.bustedHold += dt;
         g.player.hp = Math.max(0, g.player.hp - 6 * dt);
+        if (g.player.hp <= 0) g.gameOver('wasted');
         if (ped.bustedHold >= 1.4) g.gameOver('busted');
       } else {
         ped.bustedHold = Math.max(0, ped.bustedHold - dt);
       }
-      const sp = PED.runSpeed * 1.15;
-      ped.heading = Math.atan2(dx, dz);
-      ped.pos.x += Math.sin(ped.heading) * sp * dt;
-      ped.pos.z += Math.cos(ped.heading) * sp * dt;
-      ped.walkPhase += dt * 11;
+      if (ped.kind === 'officer' && !ped.protect) {
+        const sp = PED.runSpeed * 1.15;
+        ped.heading = Math.atan2(dx, dz);
+        ped.pos.x += Math.sin(ped.heading) * sp * dt;
+        ped.pos.z += Math.cos(ped.heading) * sp * dt;
+        ped.walkPhase += dt * 11;
+      }
     } else if (danger) {
       ped.state = 'flee';
       const away = Math.atan2(-dx, -dz);
@@ -140,8 +177,8 @@ export function updatePeds(g, dt) {
         }
       } else {
         ped.heading = Math.atan2(tx, tz);
-        ped.pos.x += Math.sin(ped.heading) * PED.walkSpeed * dt;
-        ped.pos.z += Math.cos(ped.heading) * PED.walkSpeed * dt;
+        ped.pos.x += Math.sin(ped.heading) * PED.walkSpeed * (ped.pace || 1) * dt;
+        ped.pos.z += Math.cos(ped.heading) * PED.walkSpeed * (ped.pace || 1) * dt;
         ped.walkPhase += dt * 6;
       }
     }

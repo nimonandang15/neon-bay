@@ -1,7 +1,8 @@
-// Missions: three story jobs from fixer Marla Voss, with objectives, a timer,
+// Missions: six story jobs from fixer Marla Voss, with objectives, a timer,
 // a 3D beacon and a minimap blip. Completing one pays cash and unlocks the next.
 import * as THREE from 'three';
 import { MISSIONS } from './config.js';
+import { makePed } from './peds.js';
 
 export function createMissions(g) {
   const beacon = new THREE.Group();
@@ -35,6 +36,10 @@ export function createMissions(g) {
     timer: 0,
     beacon,
     diamond,
+    targetPed: null,
+    targetRing: null,
+    vicPed: null,
+    vicHp: 100,
     available() {
       for (const m of MISSIONS) {
         if (!this.completed.has(m.id)) return m;
@@ -48,7 +53,45 @@ export function createMissions(g) {
       g.hud.showMissionCard(mission);
       g.hud.setObjective(this.currentStep().text);
       g.audio.missionStart();
+      // Timed first steps (m3 survive, m5 escape) need the clock now;
+      // advance() only sets it for later steps.
+      if (this.currentStep().time) this.timer = this.currentStep().time;
       if (mission.id === 'm3') g.police.setStars(3);
+      if (mission.id === 'm5') g.police.setStars(3);
+      if (mission.id === 'm4') {
+        // The informant: a marked ped in Old Town.
+        const t = mission.steps[0].target;
+        const ped = makePed(g.scene, g.rng, 'target', t.x, t.z);
+        ped.mesh.traverse((o) => { if (o.material) o.material = o.material.clone(); });
+        g.peds.push(ped);
+        this.targetPed = ped;
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(1.1, 1.5, 24),
+          new THREE.MeshBasicMaterial({ color: 0xff2020, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.12;
+        ped.mesh.add(ring);
+        this.targetRing = ring;
+        this.timer = mission.steps[0].time;
+      }
+      if (mission.id === 'm6') {
+        // Vic holds the Skyline Bar door; three officers come for him.
+        const t = mission.steps[0].target;
+        const vic = makePed(g.scene, g.rng, 'walk', t.x, t.z);
+        vic.mesh.traverse((o) => { if (o.material) o.material = o.material.clone(); });
+        g.peds.push(vic);
+        this.vicPed = vic;
+        this.vicHp = 100;
+        this.timer = mission.steps[0].time;
+        for (let i = 0; i < 3; i += 1) {
+          const off = makePed(g.scene, g.rng, 'officer', t.x + (i - 1) * 8, t.z + 14);
+          off.protect = true;
+          g.peds.push(off);
+          g.police.officers.push(off);
+        }
+        g.hud.toast('Vic is marked — keep him alive!');
+      }
       this.updateBeacon();
     },
     currentStep() {
@@ -70,10 +113,12 @@ export function createMissions(g) {
       const m = this.current;
       this.completed.add(m.id);
       g.player.cash += m.reward;
+      g.stats.cashEarned += m.reward;
       g.hud.setCash(g.player.cash);
       g.hud.showBanner(`JOB DONE — ${m.title}`, `+$${m.reward} from ${m.giver}`);
       g.audio.missionComplete();
       g.saveGame();
+      this.cleanupActors();
       this.current = null;
       this.beacon.visible = false;
       g.hud.setObjective(this.available() ? 'Press M to start the next job' : 'All jobs done — Neon Bay is yours, Rook');
@@ -82,9 +127,37 @@ export function createMissions(g) {
       if (!this.current) return;
       g.hud.showBanner('JOB FAILED', reason);
       g.audio.missionFail();
+      this.cleanupActors();
       this.current = null;
       this.beacon.visible = false;
       g.hud.setObjective(this.available() ? 'Press M to retry the job' : 'All jobs done — Neon Bay is yours, Rook');
+    },
+    cleanupActors() {
+      // Remove any mission peds (target, Vic, protect officers), dead or alive.
+      if (this.targetPed) {
+        g.scene.remove(this.targetPed.mesh);
+        const i = g.peds.indexOf(this.targetPed);
+        if (i >= 0) g.peds.splice(i, 1);
+      }
+      if (this.vicPed) {
+        g.scene.remove(this.vicPed.mesh);
+        const i = g.peds.indexOf(this.vicPed);
+        if (i >= 0) g.peds.splice(i, 1);
+      }
+      for (const ped of g.peds.filter((q) => q.protect)) {
+        g.scene.remove(ped.mesh);
+        g.peds.splice(g.peds.indexOf(ped), 1);
+        const oi = g.police.officers.indexOf(ped);
+        if (oi >= 0) g.police.officers.splice(oi, 1);
+      }
+      this.targetPed = null;
+      this.targetRing = null;
+      this.vicPed = null;
+    },
+    onTargetDown(ped) {
+      if (this.current && this.current.id === 'm4' && ped === this.targetPed) {
+        this.advance();
+      }
     },
     updateBeacon() {
       const step = this.currentStep();
@@ -109,16 +182,34 @@ export function createMissions(g) {
       if (!step) return;
       this.diamond.rotation.y += dt * 2;
       this.diamond.position.y = 7 + Math.sin(g.time * 2.4) * 0.8;
-      if (step.type === 'deliver' || step.type === 'survive') {
+      if (step.type === 'deliver' || step.type === 'survive' || step.type === 'takedown' || step.type === 'escape' || step.type === 'protect') {
         this.timer -= dt;
         g.hud.setTimer(this.timer);
         if (this.timer <= 0) {
-          if (step.type === 'survive') this.complete();
+          if (step.type === 'survive' || step.type === 'protect') this.complete();
+          else if (step.type === 'takedown') this.fail('The informant slipped away.');
           else this.fail('Out of time — the client walked away.');
           return;
         }
       }
-      if (step.type === 'goto' || step.type === 'deliver') {
+      if (step.type === 'protect') {
+        if (this.vicPed) {
+          if (this.vicPed.dead || this.vicHp <= 0) {
+            this.fail('Vic went down — the job is blown.');
+            return;
+          }
+          g.hud.setObjective(`Keep Vic alive — Vic ${Math.round(this.vicHp)} HP`);
+        }
+        return;
+      }
+      if (step.type === 'takedown') {
+        if (this.targetPed && !this.targetPed.dead) {
+          const d = Math.hypot(g.player.pos.x - this.targetPed.pos.x, g.player.pos.z - this.targetPed.pos.z);
+          g.hud.setDistance(d);
+        }
+        return;
+      }
+      if (step.type === 'goto' || step.type === 'deliver' || step.type === 'escape') {
         const d = Math.hypot(g.player.pos.x - step.target.x, g.player.pos.z - step.target.z);
         g.hud.setDistance(d);
         if (d < step.radius) {

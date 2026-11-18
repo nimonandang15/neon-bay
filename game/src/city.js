@@ -167,6 +167,7 @@ export function createCity(scene, rng) {
       const cx = bx * CITY.pitch + CITY.pitch / 2;
       const cz = bz * CITY.pitch + CITY.pitch / 2;
       if (cx === 200 && cz === -200) continue; // the Pink Flamingo stands alone here
+      if (cx === 40 && cz === 120) continue; // the shop stands alone here
       const roll = rng.next();
       if (roll < 0.16) continue; // park / plaza stays open
       const count = rng.int(1, 3);
@@ -270,6 +271,55 @@ export function createCity(scene, rng) {
   );
   flamingoSign.position.set(200, 46, -200 + 11.4);
   group.add(flamingoSign);
+
+  // The shop: Neon Arms & Snacks at (40, 120) — walk up and press E.
+  const shop = new THREE.Mesh(
+    boxGeo,
+    new THREE.MeshStandardMaterial({ map: facadeFor(0x2ecc71), emissive: 0x1a5c2a, emissiveIntensity: 0.3, roughness: 0.8 }),
+  );
+  shop.scale.set(20, 12, 16);
+  shop.position.set(40, 6, 120);
+  shop.castShadow = true;
+  group.add(shop);
+  colliders.push({ minX: 30, maxX: 50, minZ: 112, maxZ: 128 });
+  const shopSign = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 1.8, 0.5),
+    new THREE.MeshBasicMaterial({ color: 0x2ecc71 }),
+  );
+  shopSign.position.set(40, 10, 120 + 8.4);
+  group.add(shopSign);
+
+  // Bay Beach: sand at the south edge and the bay itself beyond it.
+  const sand = new THREE.Mesh(
+    new THREE.PlaneGeometry(CITY.bounds * 2 + 80, 60),
+    new THREE.MeshStandardMaterial({ color: 0xc9b18a, roughness: 1 }),
+  );
+  sand.rotation.x = -Math.PI / 2;
+  sand.position.set(0, 0.05, CITY.bounds + 30);
+  sand.receiveShadow = true;
+  group.add(sand);
+  const water = new THREE.Mesh(
+    new THREE.PlaneGeometry(CITY.bounds * 2 + 80, 400),
+    new THREE.MeshStandardMaterial({ color: 0x1f6fd6, roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.9 }),
+  );
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(0, 0.02, CITY.bounds + 260);
+  group.add(water);
+
+  // Meridian Docks: shipping containers stacked at the west edge.
+  const containerColors = [0xd93025, 0x1f6fd6, 0x2ecc71, 0xf2c200, 0x7a4fd0];
+  const dockSpots = [
+    [-330, 220, 0], [-330, 236, 1], [-318, 228, 2], [-330, 252, 3],
+    [-318, 244, 0], [-330, 268, 4], [-318, 260, 1], [-342, 244, 2],
+  ];
+  for (const [x, z, ci] of dockSpots) {
+    const c = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color: containerColors[ci], roughness: 0.7, metalness: 0.3 }));
+    c.scale.set(12, 3, 3);
+    c.position.set(x, 1.5, z);
+    c.castShadow = true;
+    group.add(c);
+    colliders.push({ minX: x - 6, maxX: x + 6, minZ: z - 1.5, maxZ: z + 1.5 });
+  }
 
   scene.add(group);
   return { group, colliders, sun };

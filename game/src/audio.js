@@ -21,6 +21,13 @@ export function createAudio() {
     [110.0, 130.81, 164.81], // Am
     [87.31, 110.0, 130.81], // F
   ];
+  // Radio stations: three synth flavours for the drive.
+  const STATIONS = [
+    { name: 'Neon FM', chords: CHORDS, tempo: 4000 },
+    { name: 'Bay 88', chords: [[116.54, 138.59, 174.61], [103.83, 123.47, 155.56], [110.0, 130.81, 164.81], [98.0, 116.54, 146.83]], tempo: 4600 },
+    { name: 'Drive Time', chords: [[146.83, 185.0, 220.0], [164.81, 207.65, 246.94], [130.81, 164.81, 196.0], [174.61, 220.0, 261.63]], tempo: 3200 },
+  ];
+  let station = 0;
 
   function ensure() {
     if (started) return;
@@ -68,7 +75,8 @@ export function createAudio() {
     let chord = 0;
     const playChord = () => {
       if (!ctx) return;
-      const notes = CHORDS[chord % CHORDS.length];
+      const st = STATIONS[station];
+      const notes = st.chords[chord % st.chords.length];
       chord += 1;
       for (const f of notes) {
         const o = ctx.createOscillator();
@@ -155,6 +163,33 @@ export function createAudio() {
     gunshot() {
       noiseBurst(0.14, 1800, 0.5);
       tone(160, 0.1, 'square', 0.2, 60);
+    },
+    weaponSound(name) {
+      if (name === 'shotgun') {
+        noiseBurst(0.3, 900, 0.65);
+        tone(110, 0.22, 'square', 0.3, 45);
+      } else if (name === 'smg') {
+        noiseBurst(0.07, 2400, 0.35);
+        tone(220, 0.05, 'square', 0.14, 90);
+      } else if (name === 'rifle') {
+        noiseBurst(0.2, 2600, 0.55);
+        tone(200, 0.16, 'sawtooth', 0.22, 50);
+        setTimeout(() => noiseBurst(0.12, 1200, 0.15), 120);
+      } else if (name === 'bat') {
+        noiseBurst(0.12, 700, 0.3);
+        tone(140, 0.12, 'sine', 0.25, 70);
+      } else if (name === 'pistol') {
+        this.gunshot();
+      } else {
+        this.punch();
+      }
+    },
+    nextStation() {
+      station = (station + 1) % STATIONS.length;
+      return STATIONS[station].name;
+    },
+    stationName() {
+      return STATIONS[station].name;
     },
     punch() {
       noiseBurst(0.08, 500, 0.35);
